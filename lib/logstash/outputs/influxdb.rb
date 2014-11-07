@@ -63,9 +63,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #
   # this will attempt to convert data point values to the appropriate type before posting
   # otherwise sprintf-filtered numeric values could get sent as strings
-  # format is `{'column_name' => 'datatype'}
+  # format is `{'column_name' => 'datatype'}`
   #
-  # currently supported datatypes are integer and float
+  # currently supported datatypes are `integer` and `float`
   #
   config :coerce_values, :validate => :hash, :default => {}
 
