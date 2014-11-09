@@ -12,7 +12,7 @@ require "stud/buffer"
 # the InfluxDB API let's you do some semblance of bulk operation
 # per http call but each call is database-specific
 #
-# You can learn more about InfluxDB at <http://influxdb.org>
+# You can learn more at http://influxdb.com[InfluxDB homepage]
 class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   include Stud::Buffer
 
