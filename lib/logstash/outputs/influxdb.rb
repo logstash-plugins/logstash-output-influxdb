@@ -44,6 +44,22 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # Both keys and values support sprintf formatting
   config :data_points, :validate => :hash, :default => {}, :required => true
 
+  # Include regex matched fields of event into `data_points` hash
+  # Example: `['host', 'type.*', 'queue\.\d+']`
+  config :include_fields, :validate => :array, :default => []
+
+  # Exclude regex matched fields of event from `data_points` hash
+  # By default exclude unresolved %{field} strings
+  config :exclude_fields, :validate => :array, :default => [ "%\{[^}]+\}" ]
+
+  # Flatten values included from event fields if they are hashes so that
+  # only the most deep values with their keys will appear in target data
+  # being sent to influxdb.
+  # Note that if there are the same keys somewhere inside nested hashes your
+  # data can become ambiguous.
+  # This setting has no effect if `include_fields` is not set.
+  config :flatten_included_hashes, :validate => :boolean, :default => false
+
   # Allow the override of the `time` column in the event?
   #
   # By default any column with a name of `time` will be ignored and the time will
@@ -95,6 +111,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     @base_url = "http://#{@host}:#{@port}/db/#{@db}/series"
     @url = "#{@base_url}?#{@query_params}"
 
+    @include_fields.collect!{|key| Regexp.new(key)}
+    @exclude_fields.collect!{|key| Regexp.new(key)}
+
     buffer_initialize(
       :max_items => @flush_size,
       :max_interval => @idle_flush_time,
@@ -128,6 +147,12 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     event_hash['name'] = event.sprintf(@series)
 
     sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
+
+    unless @include_fields.empty?
+      include_fields_from_event!(event, sprintf_points)
+      flatten_included_hashes!(sprintf_points) if @flatten_included_hashes
+    end
+
     if sprintf_points.has_key?('time')
       unless @allow_time_override
         logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
@@ -226,4 +251,33 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def teardown
     buffer_flush(:final => true)
   end # def teardown
+
+  def include_fields_from_event!(event, hash)
+    event.to_hash.each_key do |key|
+      next if @include_fields.none?{|regexp| key.match(regexp)}
+      next if @exclude_fields.any?{|regexp| key.match(regexp)}
+
+      hash[key] = event[key]
+    end
+  end
+
+  def flatten_included_hashes!(hash)
+    hash.keys.each do |key|
+      value = hash[key]
+      next unless value.is_a?(Hash)
+
+      hash.delete(key)
+      append_key_value!(hash, key, value)
+    end
+  end
+
+  def append_key_value!(hash, key, value)
+    if value.is_a?(Hash)
+      value.keys.each do |k|
+        append_key_value!(hash, k, value[k])
+      end
+    else
+      hash[key] = value
+    end
+  end
 end # class LogStash::Outputs::InfluxDB
