@@ -130,7 +130,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     if sprintf_points.has_key?('time')
       @logger.error("Cannot override value of time without 'allow_override_time'. Using event timestamp") unless @allow_override_time
     else
-      sprintf_points['time'] = to_epoch(event.timestamp)
+      sprintf_points['time'] = event.timestamp.to_i
     end
     @coerce_values.each do |column, value_type|
       if sprintf_points.has_key?(column)
@@ -219,11 +219,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       return
     end
   end # def post
-
-  private
-  def to_epoch(t)
-    return t.is_a?(Time) ? t.to_i : Time.parse(t).to_i
-  end
 
   def teardown
     buffer_flush(:final => true)
