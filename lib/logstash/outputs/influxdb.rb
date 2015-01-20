@@ -17,7 +17,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   include Stud::Buffer
 
   config_name "influxdb"
-  milestone 1
 
   # The database to write
   config :db, :validate => :string, :default => "stats"
