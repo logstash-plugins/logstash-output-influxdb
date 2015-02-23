@@ -2,6 +2,8 @@
 require "logstash/namespace"
 require "logstash/outputs/base"
 require "stud/buffer"
+require "active_support/core_ext"
+require "json"
 
 # This output lets you output Metrics to InfluxDB
 #
@@ -12,7 +14,7 @@ require "stud/buffer"
 # the InfluxDB API let's you do some semblance of bulk operation
 # per http call but each call is database-specific
 #
-# You can learn more at http://influxdb.com[InfluxDB homepage]
+# You can learn more about InfluxDB at <http://influxdb.org>
 class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   include Stud::Buffer
 
@@ -57,15 +59,15 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # Set the level of precision of `time`
   #
   # only useful when overriding the time value
-  config :time_precision, :validate => ["m", "s", "u"], :default => "s"
+  config :time_precision, :validate => ["ms", "s", "u"], :default => "s"
 
   # Allow value coercion
   #
   # this will attempt to convert data point values to the appropriate type before posting
   # otherwise sprintf-filtered numeric values could get sent as strings
-  # format is `{'column_name' => 'datatype'}`
+  # format is `{'column_name' => 'datatype'}
   #
-  # currently supported datatypes are `integer` and `float`
+  # currently supported datatypes are integer and float
   #
   config :coerce_values, :validate => :hash, :default => {}
 
@@ -84,6 +86,22 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # near-real-time.
   config :idle_flush_time, :validate => :number, :default => 1
 
+  # This settings revokes the needs to use data_points and coerce_values configuration
+  # to create appropriate insert to influxedb. Should be used with fields_to_skip configuration
+  # This setting sets data points (column) names as field name from arrived to plugin event,
+  # value for data points 
+  config :use_event_fields_for_data_points, :validate => :boolean, :default => true
+  
+  # The array with keys to delete from future processing.
+  # By the default event that arrived to the output plugin contains keys "@version", "@timestamp"
+  # and can contains another fields like, for example, "command" that added by input plugin EXEC.
+  # Of course we doesn't needs those fields to be processed and inserted to influxdb when configuration
+  # use_event_fields_for_data_points is true. 
+  # We doesn't deletes the keys from event, we creates new Hash from event and after that, we deletes unwanted
+  # keys.
+  
+  config :fields_to_skip, :validate => :array, :default => []
+  
   public
   def register
     require "ftw" # gem ftw
@@ -126,30 +144,52 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     # ]
     event_hash = {}
     event_hash['name'] = event.sprintf(@series)
-    sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
-    if sprintf_points.has_key?('time')
-      @logger.error("Cannot override value of time without 'allow_override_time'. Using event timestamp") unless @allow_override_time
+
+    if !use_event_fields_for_data_points
+		logger.debug("#{use_event_fields_for_data_points} is false. Using preconfigured data points to build influxdb request")
+		sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
+    return
     else
-      sprintf_points['time'] = to_epoch(event.timestamp)
+		logger.debug("#{use_event_fields_for_data_points} is true. Using fields from event to build influxdb request")
+    	if fields_to_skip.any?
+       		array_to_skip = fields_to_skip
+    	else
+        	array_to_skip = []
+    	end
+		
+	   logger.debug("Those fields going to be skipped from influxdb request #{array_to_skip.to_json} ")
+       sprintf_points = Hash[event] 
+       sprintf_points.delete_if{|k,v| array_to_skip.include?(k)}
+	   logger.debug("Those fields going to be used for influxdb request #{sprintf_points.to_json} ")
     end
-    @coerce_values.each do |column, value_type|
-      if sprintf_points.has_key?(column)
-        begin
-          case value_type
-          when "integer"
-            @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
-            sprintf_points[column] = sprintf_points[column].to_i
-          when "float"
-            @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
-            sprintf_points[column] = sprintf_points[column].to_f
-          else
-            @logger.error("Don't know how to convert to #{value_type}")
-          end
-        rescue => e
-          @logger.error("Unhandled exception", :error => e.message)
-        end
-      end
+     
+    if sprintf_points.has_key?('time')
+      @logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp") unless @allow_time_override
+    else
+     # sprintf_points['time'] = to_epoch(event.timestamp)
+      sprintf_points['time'] = event.timestamp.to_i
     end
+	
+    #if !use_event_fields_for_data_points
+		@coerce_values.each do |column, value_type|
+		  if sprintf_points.has_key?(column)
+			begin
+			  case value_type
+			  when "integer"
+				@logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
+				sprintf_points[column] = sprintf_points[column].to_i
+			  when "float"
+				@logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
+				sprintf_points[column] = sprintf_points[column].to_f
+			  else
+				@logger.error("Don't know how to convert to #{value_type}")
+			  end
+			rescue => e
+			  @logger.error("Unhandled exception", :error => e.message)
+			end
+		  end
+		end
+	#end
     event_hash['columns'] = sprintf_points.keys
     event_hash['points'] = []
     event_hash['points'] << sprintf_points.values
@@ -220,10 +260,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     end
   end # def post
 
-  private
-  def to_epoch(t)
-    return t.is_a?(Time) ? t.to_i : Time.parse(t).to_i
-  end
+#  private
+#  def to_epoch(t)
+#    return t.is_a?(Time) ? t.to_i : Time.parse(t).to_i
+#  end
 
   def teardown
     buffer_flush(:final => true)
