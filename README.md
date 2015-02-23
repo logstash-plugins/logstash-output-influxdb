@@ -25,7 +25,8 @@ I added 2 configuration paramters:
   I doesn't need defferent configuration per data type as in master branch.
   I'm creating relevant fields names and datatypes on filter stage and just skips the unwanted fields in outputv plugin.
   
-  input {
+input {
+
         exec {
               command => "env LANG=C sar -P ALL 1 1|egrep -v '^$|Average|CPU'"
               type => "system.cpu"
@@ -36,24 +37,25 @@ I added 2 configuration paramters:
               type => "system.memory"
               interval => 1
         }
-		exec {
+        exec {
               command => "env LANG=C sar -pd 1 1|egrep -v '^$|Average|DEV|CPU'"
               type => "system.disks"
               interval => 1
+        }
 }
+        
 
 filter {
+
         if [type] == "system.cpu" {
-			split {}
-			grok {
-					match => { "message" => "\A(?<sar_time>%{HOUR}:%{MINUTE}:%{SECOND})\s+%{DATA:cpu}\s+%{NUMBER:user:float}\s+%{NUMBER:nice:float}\s+%{NUMBER:system:float}\s+%{NUMBER:iowait:float}\s+%{NUMBER:steal:float}\s+%{NUMBER:idle:float}\z" }
-					remove_field => [ "message" ]
-                    add_field => {"series_name" => "%{host}.%{type}.%{cpu}"}
-			}
-			ruby {
-					code => " event['usage'] = (100 - event['idle']).round(2); event['usage-io'] = event['usage'] - event['iowait']"
-			}
+        	split {}
+        	grok {
+        	match => { "message" => "\A(?<sar_time>%{HOUR}:%{MINUTE}:%{SECOND})\s+%{DATA:cpu}\s+%{NUMBER:user:float}\s+%{NUMBER:nice:float}\s+%{NUMBER:system:float}\s+%{NUMBER:iowait:float}\s+%{NUMBER:steal:float}\s+%{NUMBER:idle:float}\z" }								remove_field => [ "message" ]
+                add_field => {"series_name" => "%{host}.%{type}.%{cpu}"}
         }
+        ruby {
+        code => " event['usage'] = (100 - event['idle']).round(2); event['usage-io'] = event['usage'] - event['iowait']"		}
+      }
         if [type] == "system.memory" {
 			split {}
 			grok {
