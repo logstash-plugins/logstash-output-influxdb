@@ -2,6 +2,7 @@
 require "logstash/namespace"
 require "logstash/outputs/base"
 require "stud/buffer"
+require "json"
 
 # This output lets you output Metrics to InfluxDB
 #
