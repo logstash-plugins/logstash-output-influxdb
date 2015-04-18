@@ -94,14 +94,14 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     @query_params = "u=#{@user}&p=#{@password.value}&time_precision=#{@time_precision}"
     @base_url = "http://#{@host}:#{@port}/db/#{@db}/series"
     @url = "#{@base_url}?#{@query_params}"
-    
+
     buffer_initialize(
       :max_items => @flush_size,
       :max_interval => @idle_flush_time,
       :logger => @logger
     )
   end # def register
-  
+
   public
   def receive(event)
     return unless output?(event)
@@ -128,7 +128,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     event_hash['name'] = event.sprintf(@series)
     sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
     if sprintf_points.has_key?('time')
-      @logger.error("Cannot override value of time without 'allow_override_time'. Using event timestamp") unless @allow_override_time
+      @logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp") unless @allow_time_override
     else
       sprintf_points['time'] = event.timestamp.to_i
     end
