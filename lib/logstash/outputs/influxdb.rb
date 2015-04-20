@@ -1,8 +1,8 @@
 # encoding: utf-8
 require "logstash/namespace"
 require "logstash/outputs/base"
+require "logstash/json"
 require "stud/buffer"
-require "json"
 
 # This output lets you output Metrics to InfluxDB
 #
@@ -94,14 +94,14 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     @query_params = "u=#{@user}&p=#{@password.value}&time_precision=#{@time_precision}"
     @base_url = "http://#{@host}:#{@port}/db/#{@db}/series"
     @url = "#{@base_url}?#{@query_params}"
-    
+
     buffer_initialize(
       :max_items => @flush_size,
       :max_interval => @idle_flush_time,
       :logger => @logger
     )
   end # def register
-  
+
   public
   def receive(event)
     return unless output?(event)
@@ -126,21 +126,26 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     # ]
     event_hash = {}
     event_hash['name'] = event.sprintf(@series)
+
     sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
     if sprintf_points.has_key?('time')
-      @logger.error("Cannot override value of time without 'allow_override_time'. Using event timestamp") unless @allow_override_time
+      unless @allow_time_override
+        logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
+        sprintf_points['time'] = event.timestamp.to_i
+      end
     else
       sprintf_points['time'] = event.timestamp.to_i
     end
+
     @coerce_values.each do |column, value_type|
       if sprintf_points.has_key?(column)
         begin
           case value_type
           when "integer"
-            @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
+            @logger.debug? and @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
             sprintf_points[column] = sprintf_points[column].to_i
           when "float"
-            @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
+            @logger.debug? and @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{sprintf_points[column]}")
             sprintf_points[column] = sprintf_points[column].to_f
           else
             @logger.error("Don't know how to convert to #{value_type}")
@@ -150,17 +155,15 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
         end
       end
     end
+
     event_hash['columns'] = sprintf_points.keys
     event_hash['points'] = []
     event_hash['points'] << sprintf_points.values
+
     buffer_receive(event_hash)
   end # def receive
 
-#  def flush; return; end
-  def flush(events, teardown=false)
-   # Avoid creating a new string for newline every time
-    newline = "\n".freeze
-
+  def flush(events, teardown = false)
     # seen_series stores a list of series and associated columns
     # we've seen for each event
     # so that we can attempt to batch up points for a given series.
@@ -182,13 +185,13 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
           seen_series[ev['name']] = ev['columns']
           event_collection << ev
         end
-      rescue
-        @logger.info("Error adding event to collection", :exception => e)
+      rescue => e
+        @logger.warn("Error adding event to collection", :exception => e)
         next
       end
     end
 
-    post(event_collection.to_json)
+    post(LogStash::Json.dump(event_collection))
   end # def receive_bulk
 
   def post(body)
