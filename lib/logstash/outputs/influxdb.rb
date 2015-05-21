@@ -131,10 +131,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     if sprintf_points.has_key?('time')
       unless @allow_time_override
         logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
-        sprintf_points['time'] = event.timestamp.to_i
+        sprintf_points['time'] = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
       end
     else
-      sprintf_points['time'] = event.timestamp.to_i
+      sprintf_points['time'] = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
     end
 
     @coerce_values.each do |column, value_type|
@@ -226,4 +226,16 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def teardown
     buffer_flush(:final => true)
   end # def teardown
+  
+  # Returns the numeric value of the given timestamp in the requested precision.
+  # precision must be one of the valid values for time_precision
+  def timestamp_at_precision( timestamp, precision )
+    multiplier = case precision
+      when :s  then 1
+      when :ms then 1000
+      when :u  then 1000000
+    end
+    
+    (timestamp.to_f * multiplier).to_i
+  end
 end # class LogStash::Outputs::InfluxDB
