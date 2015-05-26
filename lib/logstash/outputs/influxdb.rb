@@ -207,11 +207,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     #    ]
     #}
     
-    # All of the events in a batch must go to the same database and with
-    # the same retention policy. 
     event_collection = {
-      "database"        => event.sprintf(@db),
-      "retentionPolicy" => event.sprintf(@retention_policy),
+      "database"        => @db,
+      "retentionPolicy" => @retention_policy,
       "points"          => [events]
     }
 
