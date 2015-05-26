@@ -211,7 +211,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     # the same retention policy. 
     event_collection = {
       "database"        => event.sprintf(@db),
-      "retentionPolicy" => event.sprintf(@retention_policy)
+      "retentionPolicy" => event.sprintf(@retention_policy),
       "points"          => [events]
     }
 
