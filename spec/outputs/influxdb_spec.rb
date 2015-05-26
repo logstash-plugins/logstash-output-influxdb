@@ -40,4 +40,39 @@ describe LogStash::Outputs::InfluxDB do
     end
 
   end
+
+  context "using event fields as data points" do
+    let(:config) do <<-CONFIG
+        input {
+           generator {
+             message => "foo=1 bar=2 time=3"
+             count => 2
+             type => "generator"
+           }
+         }
+
+         filter {
+           kv { }
+         }
+
+         output {
+           influxdb {
+             host => "localhost"
+             user => "someuser"
+             password => "somepwd"
+             allow_time_override => true
+             use_event_fields_as_data_points => true
+             exclude_fields => ["host", "type", "name", "message"]
+           }
+         }
+      CONFIG
+    end
+
+    let(:json_result) { %q|[{"name":"logstash","columns":["foo","bar","time"],"points":[["1","2","3"],["1","2","3"]]}]| }
+
+    it "should use the event fields as the data points, excluding @version and @timestamp by default as well as any fields configured by exclude_fields" do
+      expect_any_instance_of(LogStash::Outputs::InfluxDB).to receive(:post).with(json_result)
+      pipeline.run
+    end
+  end
 end
