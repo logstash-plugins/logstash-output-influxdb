@@ -161,9 +161,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     coerce_values!(point)
 
     event_hash = {
-      "name"   => event.sprintf(@series), 
-      "time"   => time,
-      "fields" => point
+      "name"      => event.sprintf(@series), 
+      "time"      => time,
+      "precision" => @time_precision,
+      "fields"    => point
     }
 
     buffer_receive(event_hash)
