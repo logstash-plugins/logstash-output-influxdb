@@ -210,7 +210,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     event_collection = {
       "database"        => @db,
       "retentionPolicy" => @retention_policy,
-      "points"          => [events]
+      "points"          => events
     }
 
     post(LogStash::Json.dump(event_collection))
