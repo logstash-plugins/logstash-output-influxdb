@@ -232,18 +232,22 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       return # abort this flush
     end
 
-    # Consume the body for error checking
-    # This will also free up the connection for reuse.
-    body = ""
-    begin
-      response.read_body { |chunk| body += chunk }
-    rescue EOFError
-      @logger.warn("EOF while reading response body from InfluxDB",
-                   :host => @host, :port => @port)
-      return # abort this flush
-    end
+    # Only try to read the body for error checking if there's a body. Responses
+    # with a status of 204 (which Influxdb 0.9 uses) MUST NOT have a body
+    if response.content?
+      # Consume the body for error checking
+      # This will also free up the connection for reuse.
+      body = ""
+      begin
+        response.read_body { |chunk| body += chunk }
+      rescue EOFError
+        @logger.warn("EOF while reading response body from InfluxDB",
+                     :host => @host, :port => @port)
+        return # abort this flush
+      end
 
-    @logger.debug? and @logger.debug("Body: #{body}")
+      @logger.debug? and @logger.debug("Body: #{body}")
+    end
 
     unless response.status >= 200 && response.status < 300
       @logger.error("Error writing to InfluxDB",
