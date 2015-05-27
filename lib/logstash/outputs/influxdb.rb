@@ -243,6 +243,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       return # abort this flush
     end
 
+    @logger.debug? and @logger.debug("Body: #{body}")
+
     unless response.status >= 200 && response.status < 300
       @logger.error("Error writing to InfluxDB",
                     :response => response, :response_body => body,
