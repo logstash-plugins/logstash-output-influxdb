@@ -124,6 +124,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def receive(event)
     return unless output?(event)
 
+    @logger.debug? and @logger.debug("Influxdb output: Received event: #{event}")
+
     # An Influxdb 0.9 event looks like this: 
     # {
     #     "database": "mydb",
@@ -214,13 +216,15 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       "points"          => events
     }
 
+    @logger.debug? and @logger.debug("Flushing #{events.size} events to #{@url} - Event collection: #{event_collection} - Teardown? #{teardown}")
+
     post(LogStash::Json.dump(event_collection))
   end # def flush
 
 
   def post(body)
     begin
-      @logger.debug("Post body: #{body}")
+      @logger.debug? and @logger.debug("Post body: #{body}")
       response = @agent.post!(@url, :body => body)
     rescue EOFError
       @logger.warn("EOF while writing request or reading response header from InfluxDB",
@@ -239,7 +243,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       return # abort this flush
     end
 
-    if response.status != 200
+    if response.status.to_s !~ /^20./
       @logger.error("Error writing to InfluxDB",
                     :response => response, :response_body => body,
                     :request_body => @queue.join("\n"))
@@ -297,6 +301,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # precision must be one of the valid values for time_precision
   def timestamp_at_precision( timestamp, precision )
     multiplier = case precision
+      when :h  then 1.0/3600
+      when :m  then 1.0/60
       when :s  then 1
       when :ms then 1000
       when :u  then 1000000
