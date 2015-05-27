@@ -236,7 +236,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
     # Only try to read the body for error checking if there's a body. Responses
     # with a status of 204 (which Influxdb 0.9 uses) MUST NOT have a body
-    if response.content?
+    unless [204,304].include?(response.status) || !response.content?
       # Consume the body for error checking
       # This will also free up the connection for reuse.
       body = ""
