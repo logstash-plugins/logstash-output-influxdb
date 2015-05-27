@@ -232,11 +232,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       return # abort this flush
     end
 
-    @logger.debug? and @logger.debug("Post response: #{response}")
-
     # Only try to read the body for error checking if there's a body. Responses
     # with a status of 204 (which Influxdb 0.9 uses) MUST NOT have a body
-    unless [204,304].include?(response.status) || !response.content?
+    if read_body?(response)
       # Consume the body for error checking
       # This will also free up the connection for reuse.
       body = ""
@@ -251,11 +249,13 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       @logger.debug? and @logger.debug("Body: #{body}")
     end
 
-    unless response.status >= 200 && response.status < 300
+    unless (200..299).include?(response.status)
       @logger.error("Error writing to InfluxDB",
                     :response => response, :response_body => body,
                     :request_body => @queue.join("\n"))
       return
+    else
+      @logger.debug? and @logger.debug("Post response: #{response}")
     end
   end # def post
 
@@ -317,5 +317,12 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     end
     
     (timestamp.to_f * multiplier).to_i
+  end
+
+
+  # Only read the response body if its status is not 1xx, 204, or 304. TODO: Should 
+  # also not try reading the body if the request was a HEAD
+  def read_body?( response )
+    ! ([204,304].include?(response.status) || (100..199).include?(response.status))
   end
 end # class LogStash::Outputs::InfluxDB
