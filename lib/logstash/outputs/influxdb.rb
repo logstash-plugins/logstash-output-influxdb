@@ -232,6 +232,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       return # abort this flush
     end
 
+    @logger.debug? and @logger.debug("Post response: #{response}")
+
     # Only try to read the body for error checking if there's a body. Responses
     # with a status of 204 (which Influxdb 0.9 uses) MUST NOT have a body
     if response.content?
@@ -254,8 +256,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
                     :response => response, :response_body => body,
                     :request_body => @queue.join("\n"))
       return
-    else
-      @logger.debug? and @logger.debug("Post response: #{response}")
     end
   end # def post
 
