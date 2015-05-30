@@ -65,7 +65,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # otherwise sprintf-filtered numeric values could get sent as strings
   # format is `{'column_name' => 'datatype'}`
   #
-  # currently supported datatypes are `integer` and `float`
+  # Currently supported datatypes are `integer` and `float`
+  # Supports sprintf-formatting in column names.
   #
   config :coerce_values, :validate => :hash, :default => {}
 
@@ -140,6 +141,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     end
 
     @coerce_values.each do |column, value_type|
+      column = event.sprintf(column)
       if sprintf_points.has_key?(column)
         begin
           case value_type
