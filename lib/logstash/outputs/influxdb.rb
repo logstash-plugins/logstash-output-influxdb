@@ -128,6 +128,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     event_hash['name'] = event.sprintf(@series)
 
     sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
+    sprintf_points.delete_if{|_, v| v[0] == "%"}
+
     if sprintf_points.has_key?('time')
       unless @allow_time_override
         logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
