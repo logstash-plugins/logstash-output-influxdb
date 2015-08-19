@@ -51,13 +51,18 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #
   # Setting this to `true` allows you to explicitly set the `time` column yourself
   #
-  # Note: **`time` must be an epoch value in either seconds, milliseconds or microseconds**
+  # Note: 0.6-0.8: **`time` must be an epoch value in either seconds, milliseconds or microseconds**
+  # Note: 0.9: **`time` must be an epoch value in either nanoseconds, microseconds, milliseconds, seconds, minutes or hours**
   config :allow_time_override, :validate => :boolean, :default => false
 
   # Set the level of precision of `time`
   #
   # only useful when overriding the time value
-  config :time_precision, :validate => ["m", "s", "u"], :default => "s"
+  # Options described in https://influxdb.com/docs/v0.9/guides/writing_data.html and
+  # https://influxdb.com/docs/v0.8/api/reading_and_writing_data.html
+  # InfluxDB 0.6-0.8: only supports seconds (s), milliseconds (ms), microseconds (u).
+  # InfluxDB 0.9: nanoseconds (n), microseconds (u), milliseconds(ms), seconds(s), minutes(m), hours(h).
+  config :time_precision, :validate => ["n", "u", "ms", "s", "m", "h"], :default => "s"
 
   # Allow value coercion
   #
