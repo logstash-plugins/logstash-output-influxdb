@@ -223,7 +223,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     end
   end # def post
 
-  def teardown
+  def close
     buffer_flush(:final => true)
   end # def teardown
 end # class LogStash::Outputs::InfluxDB

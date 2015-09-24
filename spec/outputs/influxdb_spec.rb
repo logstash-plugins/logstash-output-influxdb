@@ -7,36 +7,38 @@ describe LogStash::Outputs::InfluxDB do
 
   context "complete pipeline run with 2 events" do
 
-    let(:config) do <<-CONFIG
-       input {
-          generator {
-            message => "foo=1 bar=2 time=3"
-            count => 2
-            type => "generator"
-          }
+    let(:config) do
+      {
+        "host" => "localhost",
+        "user" => "someuser",
+        "password" => "somepwd",
+        "allow_time_override" => true,
+        "data_points" => {
+          "foo" => "%{foo}",
+          "bar" => "%{bar}",
+          "time" => "%{time}"
         }
+      }
+    end
 
-        filter {
-          kv { }
-        }
+    subject { LogStash::Outputs::InfluxDB.new(config) }
 
-        output {
-          influxdb {
-            host => "localhost"
-            user => "someuser"
-            password => "somepwd"
-            allow_time_override => true
-            data_points => {"foo" => "%{foo}" "bar" => "%{bar}" "time" => "%{time}"}
-          }
-        }
-      CONFIG
+    before do
+      subject.register
+      allow(subject).to receive(:post).with(json_result)
+
+      2.times do
+        subject.receive(LogStash::Event.new("foo" => "1", "bar" => "2", "time" => "3", "type" => "generator"))
+      end
+
+      # Close / flush the buffer
+      subject.close
     end
 
     let(:json_result) { "[{\"name\":\"logstash\",\"columns\":[\"foo\",\"bar\",\"time\"],\"points\":[[\"1\",\"2\",\"3\"],[\"1\",\"2\",\"3\"]]}]" }
 
     it "should receive 2 events, flush and call post with 2 items json array" do
-      expect_any_instance_of(LogStash::Outputs::InfluxDB).to receive(:post).with(json_result)
-      pipeline.run
+      expect(subject).to have_received(:post).with(json_result)
     end
 
   end
