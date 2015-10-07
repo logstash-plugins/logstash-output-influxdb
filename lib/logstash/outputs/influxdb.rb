@@ -104,7 +104,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   public
   def receive(event)
-    return unless output?(event)
+    
 
     # A batch POST for InfluxDB looks like this:
     # [
