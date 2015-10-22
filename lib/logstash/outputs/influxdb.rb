@@ -180,10 +180,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
         elsif seen_series.has_key?(ev['name']) and (seen_series[ev['name']] != ev['columns'])
           @logger.warn("Series '#{ev['name']}' has been seen but columns are different or in a different order. Adding to batch but not under existing series")
           @logger.warn("Existing series columns were: #{seen_series[ev['name']].join(",")} and event columns were: #{ev['columns'].join(",")}")
-          event_collection << ev
+          event_collection << {'name'=>ev['name'], 'columns'=>ev['columns'], 'points'=>Array.new(ev['points'])}
         else
           seen_series[ev['name']] = ev['columns']
-          event_collection << ev
+          event_collection << {'name'=>ev['name'], 'columns'=>ev['columns'], 'points'=>Array.new(ev['points'])}
         end
       rescue => e
         @logger.warn("Error adding event to collection", :exception => e)
