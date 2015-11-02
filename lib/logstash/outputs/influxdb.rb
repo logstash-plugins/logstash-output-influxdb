@@ -176,7 +176,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       begin
         if seen_series.has_key?(ev['name']) and (seen_series[ev['name']] == ev['columns'])
           @logger.info("Existing series data found. Appending points to that series")
-          event_collection.select {|h| h['points'] << ev['points'][0] if h['name'] == ev['name']}
+          event_collection.select {|h| h['points'] << ev['points'][0] if h['columns'] == ev['columns']}
         elsif seen_series.has_key?(ev['name']) and (seen_series[ev['name']] != ev['columns'])
           @logger.warn("Series '#{ev['name']}' has been seen but columns are different or in a different order. Adding to batch but not under existing series")
           @logger.warn("Existing series columns were: #{seen_series[ev['name']].join(",")} and event columns were: #{ev['columns'].join(",")}")
