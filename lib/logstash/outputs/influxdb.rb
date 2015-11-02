@@ -65,7 +65,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # otherwise sprintf-filtered numeric values could get sent as strings
   # format is `{'column_name' => 'datatype'}`
   #
-  # currently supported datatypes are `integer` and `float`
+  # Currently supported datatypes are `integer` and `float`
+  # Supports sprintf-formatting in column names.
   #
   config :coerce_values, :validate => :hash, :default => {}
 
@@ -128,6 +129,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     event_hash['name'] = event.sprintf(@series)
 
     sprintf_points = Hash[@data_points.map {|k,v| [event.sprintf(k), event.sprintf(v)]}]
+    sprintf_points.delete_if{|_, v| v[0] == "%"}
+
     if sprintf_points.has_key?('time')
       unless @allow_time_override
         logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
@@ -138,6 +141,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     end
 
     @coerce_values.each do |column, value_type|
+      column = event.sprintf(column)
       if sprintf_points.has_key?(column)
         begin
           case value_type
@@ -176,7 +180,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       begin
         if seen_series.has_key?(ev['name']) and (seen_series[ev['name']] == ev['columns'])
           @logger.info("Existing series data found. Appending points to that series")
-          event_collection.select {|h| h['points'] << ev['points'][0] if h['name'] == ev['name']}
+          event_collection.select {|h| h['points'] << ev['points'][0] if h['columns'] == ev['columns']}
         elsif seen_series.has_key?(ev['name']) and (seen_series[ev['name']] != ev['columns'])
           @logger.warn("Series '#{ev['name']}' has been seen but columns are different or in a different order. Adding to batch but not under existing series")
           @logger.warn("Existing series columns were: #{seen_series[ev['name']].join(",")} and event columns were: #{ev['columns'].join(",")}")
