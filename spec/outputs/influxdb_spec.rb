@@ -115,6 +115,175 @@ describe LogStash::Outputs::InfluxDB do
     end
   end
 
+  context "Escapeing space characters" do
+    let(:config) do <<-CONFIG
+        input {
+           generator {
+             message => "foo=1 bar=2 baz=3 time=4"
+             count => 1
+             type => "generator"
+           }
+         }
+
+         filter {
+           kv { 
+	      add_field => {
+		"test1" => "yellow cat"
+		"test space" => "making life hard"
+		"feild space" => "pink dog"
+	      }
+	   }
+         }
+
+         output {
+           influxdb {
+             host => "localhost"
+             measurement => "my series"
+             allow_time_override => true
+             use_event_fields_for_data_points => true
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             send_as_tags => ["bar", "baz", "test1", "test space"]
+           }
+         }
+      CONFIG
+    end
+
+    let(:expected_url)  { 'http://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p='}
+    let(:expected_body) { 'my\ series,bar=2,baz=3,test1=yellow\ cat,test\ space=making\ life\ hard foo="1",feild\ space="pink dog" 4' }
+
+    it "should send the specified fields as tags" do
+      expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
+      pipeline.run
+    end
+  end
+
+  context "Escapeing comma characters" do
+    let(:config) do <<-CONFIG
+        input {
+           generator {
+             message => "foo=1 bar=2 baz=3 time=4"
+             count => 1
+             type => "generator"
+           }
+         }
+
+         filter {
+           kv {
+              add_field => {
+                "test1" => "yellow, cat"
+                "test, space" => "making, life, hard"
+                "feild, space" => "pink, dog"
+              }
+           }
+         }
+
+         output {
+           influxdb {
+             host => "localhost"
+             measurement => "my, series"
+             allow_time_override => true
+             use_event_fields_for_data_points => true
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             send_as_tags => ["bar", "baz", "test1", "test, space"]
+           }
+         }
+      CONFIG
+    end
+
+    let(:expected_url)  { 'http://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p='}
+    let(:expected_body) { 'my\,\ series,bar=2,baz=3,test1=yellow\,\ cat,test\,\ space=making\,\ life\,\ hard foo="1",feild\,\ space="pink, dog" 4' }
+
+    it "should send the specified fields as tags" do
+      expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
+      pipeline.run
+    end
+  end
+
+  context "Escapeing equal characters" do
+    let(:config) do <<-CONFIG
+        input {
+           generator {
+             message => "foo=1 bar=2 baz=3 time=4"
+             count => 1
+             type => "generator"
+           }
+         }
+
+         filter {
+           kv {
+              add_field => {
+                "test1" => "yellow=cat"
+                "test=space" => "making= life=hard"
+                "feild= space" => "pink= dog"
+              }
+           }
+         }
+
+         output {
+           influxdb {
+             host => "localhost"
+             measurement => "my=series"
+             allow_time_override => true
+             use_event_fields_for_data_points => true
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             send_as_tags => ["bar", "baz", "test1", "test=space"]
+           }
+         }
+      CONFIG
+    end
+
+    let(:expected_url)  { 'http://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p='}
+    let(:expected_body) { 'my=series,bar=2,baz=3,test1=yellow\=cat,test\=space=making\=\ life\=hard foo="1",feild\=\ space="pink= dog" 4' }
+
+    it "should send the specified fields as tags" do
+      expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
+      pipeline.run
+    end
+  end
+
+  context "testing backslash characters" do
+    let(:config) do <<-CONFIG
+        input {
+           generator {
+             message => 'foo\\=1 bar=2 baz=3 time=4'
+             count => 1
+             type => "generator"
+           }
+         }
+
+         filter {
+           kv {
+              add_field => {
+                "test1" => "yellow=cat"
+                "test=space" => "making=, life=hard"
+                "feildspace" => 'C:\\Griffo'
+              }
+           }
+         }
+
+         output {
+           influxdb {
+             host => "localhost"
+             measurement => 'my\\series'
+             allow_time_override => true
+             use_event_fields_for_data_points => true
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             send_as_tags => ['bar', "baz", "test1", "test=space"]
+           }
+         }
+      CONFIG
+    end
+
+    let(:expected_url)  { 'http://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p='}
+    let(:expected_body) { 'my\series,bar=2,baz=3,test1=yellow\=cat,test\=space=making\=\,\ life\=hard foo\="1",feildspace="C:\Griffo" 4' }
+
+    it "should send the specified fields as tags" do
+      expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
+      pipeline.run
+    end
+  end
+
+
   context "when fields data contains a list of tags" do
     let(:config) do <<-CONFIG
         input {

@@ -217,13 +217,12 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # cpu_load_short,host=server01,region=us-west value=0.64 cpu_load_short,host=server02,region=us-west value=0.55 1422568543702900257 cpu_load_short,direction=in,host=server01,region=us-west value=23422.0 1422568543702900257  
   def events_to_request_body(events)
     events.map do |event|
-      result = event["measurement"].dup
-      result << "," << event["tags"].map { |tag,value| "#{tag}=#{value}" }.join(',') if event.has_key?("tags")
-      result << " " << event["fields"].map { |field,value| "#{field}=#{quoted(value)}" }.join(',')
+      result = escaped_measurement(event["measurement"].dup)
+      result << "," << event["tags"].map { |tag,value| "#{escaped(tag)}=#{escaped(value)}" }.join(',') if event.has_key?("tags")
+      result << " " << event["fields"].map { |field,value| "#{escaped(field)}=#{quoted(value)}" }.join(',')
       result << " #{event["time"]}"
     end.join("\n") #each measurement should be on a separate line
   end
-
 
   # Create a data point from an event. If @use_event_fields_for_data_points is
   # true, convert the event to a hash. Otherwise, use @data_points. Each key and 
@@ -337,4 +336,18 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def quoted(value)
     Numeric === value ? value : %Q|"#{value.gsub('"','\"')}"|
   end
+
+
+  # Escape tag key, tag value, or field key
+  def escaped(value)
+    value.gsub(/[ ,=]/, ' ' => '\ ', ',' => '\,', '=' => '\=')
+  end
+
+
+  # Escape measurements note they don't need to worry about the '=' case
+  def escaped_measurement(value)
+    value.gsub(/[ ,]/, ' ' => '\ ', ',' => '\,')
+  end
+
+
 end # class LogStash::Outputs::InfluxDB
