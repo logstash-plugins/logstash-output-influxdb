@@ -19,7 +19,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   config_name "influxdb"
 
-  # The database to write
+  # The database to write - supports sprintf formatting
   config :db, :validate => :string, :default => "statistics"
 
   # The retention policy to use
@@ -36,6 +36,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   # The password for the user who access to the named database
   config :password, :validate => :password, :default => nil
+
+  # Enable SSL/TLS secured communication to InfluxDB
+  config :ssl, :validate => :boolean, :default => false
 
   # Measurement name - supports sprintf formatting
   config :measurement, :validate => :string, :default => "logstash"
@@ -113,10 +116,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     
     @client = Manticore::Client.new
     @queue = []
-
-    @query_params = "db=#{@db}&rp=#{@retention_policy}&precision=#{@time_precision}&u=#{@user}&p=#{@password.value}"
-    @base_url = "http://#{@host}:#{@port}/write"
-    @url = "#{@base_url}?#{@query_params}"
+    @protocol = @ssl ? "https" : "http"
 
     buffer_initialize(
       :max_items => @flush_size,
@@ -162,18 +162,23 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     }
     event_hash["tags"] = tags unless tags.empty?
 
-    buffer_receive(event_hash)
+    buffer_receive(event_hash, event.sprintf(@db))
   end # def receive
 
 
-  def flush(events, teardown = false)
-    @logger.debug? and @logger.debug("Flushing #{events.size} events to #{@url} - Teardown? #{teardown}")
-    post(events_to_request_body(events))
+  def flush(events, database, teardown = false)
+    @logger.debug? and @logger.debug("Flushing #{events.size} events to #{database} - Teardown? #{teardown}")
+    post(events_to_request_body(events), database)
   end # def flush
 
 
-  def post(body)
+  def post(body, database, proto = @protocol)
     begin
+      @query_params = "db=#{database}&rp=#{@retention_policy}&precision=#{@time_precision}&u=#{@user}&p=#{@password.value}"
+      @base_url = "#{proto}://#{@host}:#{@port}/write"
+      @url = "#{@base_url}?#{@query_params}"
+
+      @logger.debug? and @logger.debug("POSTing to #{@url}")
       @logger.debug? and @logger.debug("Post body: #{body}")
       response = @client.post!(@url, :body => body)
   
