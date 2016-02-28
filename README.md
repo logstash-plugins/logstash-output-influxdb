@@ -1,5 +1,5 @@
 # Note
-This plugin needs maintainers -- please comment on this issue https://github.com/logstash-plugins/logstash-output-influxdb/issues/34 if you would like to help! 
+**This plugin needs maintainers -- please comment on this issue https://github.com/logstash-plugins/logstash-output-influxdb/issues/34 if you would like to help!**
 
 
 # Logstash Plugin
