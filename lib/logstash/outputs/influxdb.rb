@@ -141,6 +141,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     
     time  = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
     point = create_point_from_event(event)
+    exclude_fields!(point)
+    coerce_values!(point)
 
     if point.has_key?('time')
       unless @allow_time_override
@@ -150,8 +152,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       end
     end
 
-    exclude_fields!(point)
-    coerce_values!(point)
+
 
     tags, point = extract_tags(point)
 
