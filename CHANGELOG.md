@@ -1,3 +1,5 @@
+# 3.1.1
+  - New dependency requirements for logstash-core for the 5.0 release
 ## 3.1.0
  - New option to enable SSL/TLS encrypted communication to InfluxDB
  - DB parameter now supports sprintf formatting
