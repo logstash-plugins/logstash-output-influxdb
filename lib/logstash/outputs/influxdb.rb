@@ -301,12 +301,23 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     remainder = fields.dup
 
     tags = if remainder.has_key?("tags") && remainder["tags"].respond_to?(:inject)
-      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = "true"; tags }
+      remainder.delete("tags").inject({}) do |tags, tag|
+        tag.is_a?(Array) ? tags[tag[0]] = tag[1] : tags[tag] = "true"
+        tags
+      end
     else
       {}
     end
-    
-    @send_as_tags.each { |key| (tags[key] = remainder.delete(key)) if remainder.has_key?(key) }
+
+    @send_as_tags.each do |key|
+      if remainder.has_key?(key)
+        if remainder[key].is_a?(Hash)
+          tags.merge!(remainder.delete(key))
+        else
+          tags[key] = remainder.delete(key)
+        end
+      end
+    end
 
     tags.delete_if { |key,value| value.nil? || value == "" }
     remainder.delete_if { |key,value| value.nil? || value == "" }
