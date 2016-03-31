@@ -88,9 +88,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # This only applies when use_event_fields_for_data_points is true.
   config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type"]  
 
-  # An array containing the names of fields to send to Influxdb as tags instead 
-  # of fields. Influxdb 0.9 convention is that values that do not change every
+  # An array containing the names of fields to send to Influxdb as tags instead
+  # of values. Influxdb 0.9 convention is that values that do not change every
   # request should be considered metadata and given as tags.
+  # Tags are only sent when present in `data_points` or if `use_event_fields_for_data_points` is `true`.
   config :send_as_tags, :validate => :array, :default => ["host"]
 
   # This setting controls how many events will be buffered before sending a batch
