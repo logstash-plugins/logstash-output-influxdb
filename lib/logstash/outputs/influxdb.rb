@@ -156,7 +156,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     tags, point = extract_tags(point)
 
     event_hash = {
-      "measurement" => event.sprintf(@measurement),
+      "measurement" => event['measurement'] || event.sprintf(@measurement),
       "time"        => time,
       "fields"      => point
     }
