@@ -86,7 +86,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # exec plugin).
   # 
   # This only applies when use_event_fields_for_data_points is true.
-  config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type"]  
+  config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type", "measurement"]  
 
   # An array containing the names of fields to send to Influxdb as tags instead 
   # of fields. Influxdb 0.9 convention is that values that do not change every
