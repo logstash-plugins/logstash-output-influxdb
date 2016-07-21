@@ -19,6 +19,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   config_name "influxdb"
 
+  default :codec, 'plain'
+
   # The database to write - supports sprintf formatting
   config :db, :validate => :string, :default => "statistics"
 
@@ -108,28 +110,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # near-real-time.
   config :idle_flush_time, :validate => :number, :default => 1
 
+  private
 
-  public
-  def register
-    require 'manticore'
-    require 'cgi'
-    
-    @client = Manticore::Client.new
-    @queue = []
-    @protocol = @ssl ? "https" : "http"
-
-    buffer_initialize(
-      :max_items => @flush_size,
-      :max_interval => @idle_flush_time,
-      :logger => @logger
-    )
-  end # def register
-
-
-  public
-  def receive(event)
-    
-
+  def _receive(event)
     @logger.debug? and @logger.debug("Influxdb output: Received event: #{event}")
 
     # An Influxdb 0.9 event looks like this: 
@@ -163,8 +146,33 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     event_hash["tags"] = tags unless tags.empty?
 
     buffer_receive(event_hash, event.sprintf(@db))
-  end # def receive
+  end # def _receive
 
+  public
+
+  def register
+    require 'manticore'
+    require 'cgi'
+
+    @client = Manticore::Client.new
+    @queue = []
+    @protocol = @ssl ? "https" : "http"
+
+    buffer_initialize(
+      :max_items => @flush_size,
+      :max_interval => @idle_flush_time,
+      :logger => @logger
+    )
+
+    @codec.on_event { |event_ori, event_new| _receive(event_new) }
+  end # def register
+
+  def receive(event)
+    if event == LogStash::SHUTDOWN
+      return
+    end
+    @codec.encode(event)
+  end
 
   def flush(events, database, teardown = false)
     @logger.debug? and @logger.debug("Flushing #{events.size} events to #{database} - Teardown? #{teardown}")
