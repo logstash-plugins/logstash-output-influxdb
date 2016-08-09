@@ -77,18 +77,18 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   # Automatically use fields from the event as the data points sent to Influxdb
   config :use_event_fields_for_data_points, :validate => :boolean, :default => false
-  
-  # An array containing the names of fields from the event to exclude from the
-  # data points 
-  # 
-  # Events, in general, contain keys "@version" and "@timestamp". Other plugins
-  # may add others that you'll want to exclude (such as "command" from the 
-  # exec plugin).
-  # 
-  # This only applies when use_event_fields_for_data_points is true.
-  config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type"]  
 
-  # An array containing the names of fields to send to Influxdb as tags instead 
+  # An array containing the names of fields from the event to exclude from the
+  # data points
+  #
+  # Events, in general, contain keys "@version" and "@timestamp". Other plugins
+  # may add others that you'll want to exclude (such as "command" from the
+  # exec plugin).
+  #
+  # This only applies when use_event_fields_for_data_points is true.
+  config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type"]
+
+  # An array containing the names of fields to send to Influxdb as tags instead
   # of fields. Influxdb 0.9 convention is that values that do not change every
   # request should be considered metadata and given as tags.
   config :send_as_tags, :validate => :array, :default => ["host"]
@@ -113,7 +113,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def register
     require 'manticore'
     require 'cgi'
-    
+
     @client = Manticore::Client.new
     @queue = []
     @protocol = @ssl ? "https" : "http"
@@ -128,17 +128,17 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   public
   def receive(event)
-    
+
 
     @logger.debug? and @logger.debug("Influxdb output: Received event: #{event}")
 
-    # An Influxdb 0.9 event looks like this: 
+    # An Influxdb 0.9 event looks like this:
     # cpu_load_short,host=server01,region=us-west value=0.64 1434055562000000000
     #  ^ measurement  ^ tags (optional)            ^ fields   ^ timestamp (optional)
-    # 
+    #
     # Since we'll be buffering them to send as a batch, we'll only collect
     # the values going into the points array
-    
+
     time  = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
     point = create_point_from_event(event)
 
@@ -181,7 +181,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       @logger.debug? and @logger.debug("POSTing to #{@url}")
       @logger.debug? and @logger.debug("Post body: #{body}")
       response = @client.post!(@url, :body => body)
-  
+
     rescue EOFError
       @logger.warn("EOF while writing request or reading response header from InfluxDB",
                    :host => @host, :port => @port)
@@ -219,7 +219,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
 
   # A batch POST for InfluxDB 0.9 looks like this:
-  # cpu_load_short,host=server01,region=us-west value=0.64 cpu_load_short,host=server02,region=us-west value=0.55 1422568543702900257 cpu_load_short,direction=in,host=server01,region=us-west value=23422.0 1422568543702900257  
+  # cpu_load_short,host=server01,region=us-west value=0.64 cpu_load_short,host=server02,region=us-west value=0.55 1422568543702900257 cpu_load_short,direction=in,host=server01,region=us-west value=23422.0 1422568543702900257
   def events_to_request_body(events)
     events.map do |event|
       result = escaped_measurement(event["measurement"].dup)
@@ -230,18 +230,18 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   end
 
   # Create a data point from an event. If @use_event_fields_for_data_points is
-  # true, convert the event to a hash. Otherwise, use @data_points. Each key and 
+  # true, convert the event to a hash. Otherwise, use @data_points. Each key and
   # value will be run through event#sprintf with the exception of a non-String
   # value (which will be passed through)
   def create_point_from_event(event)
-    Hash[ (@use_event_fields_for_data_points ? event.to_hash : @data_points).map do |k,v| 
-      [event.sprintf(k), (String === v ? event.sprintf(v) : v)] 
+    Hash[ (@use_event_fields_for_data_points ? event.to_hash : @data_points).map do |k,v|
+      [event.sprintf(k), (String === v ? event.sprintf(v) : v)]
     end ]
   end
-  
 
-  # Coerce values in the event data to their appropriate type. This requires 
-  # foreknowledge of what's in the data point, which is less than ideal. An 
+
+  # Coerce values in the event data to their appropriate type. This requires
+  # foreknowledge of what's in the data point, which is less than ideal. An
   # alternative is to use a `code` filter and manipulate the individual point's
   # data before sending to the output pipeline
   def coerce_values!(event_data)
@@ -265,16 +265,16 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     case value_type.to_sym
     when :integer
       value.to_i
-      
+
     when :float
       value.to_f
 
     when :string
       value.to_s
-    
+
     else
       @logger.warn("Don't know how to convert to #{value_type}. Returning value unchanged")
-      value  
+      value
     end
   end
 
@@ -286,13 +286,13 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   end
 
 
-  # Extract tags from a hash of fields. 
-  # Returns a tuple containing a hash of tags (as configured by send_as_tags) 
-  # and a hash of fields that exclude the tags. If fields contains a key 
+  # Extract tags from a hash of fields.
+  # Returns a tuple containing a hash of tags (as configured by send_as_tags)
+  # and a hash of fields that exclude the tags. If fields contains a key
   # "tags" with an array, they will be moved to the tags hash (and each will be
   # given a value of true)
-  # 
-  # Example: 
+  #
+  # Example:
   #   # Given send_as_tags: ["bar"]
   #   original_fields = {"foo" => 1, "bar" => 2, "tags" => ["tag"]}
   #   tags, fields = extract_tags(original_fields)
@@ -301,15 +301,16 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     remainder = fields.dup
 
     tags = if remainder.has_key?("tags") && remainder["tags"].respond_to?(:inject)
-      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = "true"; tags }
+      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = if remainder.has_key?(tag) then fields[tag] else "true" end; tags }
     else
       {}
     end
-    
+
     @send_as_tags.each { |key| (tags[key] = remainder.delete(key)) if remainder.has_key?(key) }
 
     tags.delete_if { |key,value| value.nil? || value == "" }
     remainder.delete_if { |key,value| value.nil? || value == "" }
+    remainder.delete_if { |key,value| tags.has_key?(key) }
 
     [tags, remainder]
   end
@@ -325,12 +326,12 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       when :ms then 1000
       when :u  then 1000000
     end
-    
+
     (timestamp.to_f * multiplier).to_i
   end
 
 
-  # Only read the response body if its status is not 1xx, 204, or 304. TODO: Should 
+  # Only read the response body if its status is not 1xx, 204, or 304. TODO: Should
   # also not try reading the body if the request was a HEAD
   def read_body?( response )
     ! (response.nil? || [204,304].include?(response.code) || (100..199).include?(response.code))
