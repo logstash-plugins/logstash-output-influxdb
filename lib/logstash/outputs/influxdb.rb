@@ -346,13 +346,13 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   # Escape tag key, tag value, or field key
   def escaped(value)
-    value.gsub(/[ ,=]/, ' ' => '\ ', ',' => '\,', '=' => '\=')
+    !!value == value ? value : value.gsub(/[ ,=]/, ' ' => '\ ', ',' => '\,', '=' => '\=')
   end
 
 
   # Escape measurements note they don't need to worry about the '=' case
   def escaped_measurement(value)
-    value.gsub(/[ ,]/, ' ' => '\ ', ',' => '\,')
+    !!value == value ? value : value.gsub(/[ ,]/, ' ' => '\ ', ',' => '\,')
   end
 
 
