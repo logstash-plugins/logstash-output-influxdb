@@ -128,8 +128,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   public
   def receive(event)
-    
-
     @logger.debug? and @logger.debug("Influxdb output: Received event: #{event}")
 
     # An Influxdb 0.9 event looks like this: 
