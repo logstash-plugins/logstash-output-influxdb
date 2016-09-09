@@ -1,3 +1,4 @@
+# encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/outputs/influxdb"
 require "manticore"
@@ -72,7 +73,7 @@ describe LogStash::Outputs::InfluxDB do
     end
 
     let(:expected_url)  { 'http://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p='}
-    let(:expected_body) { 'my_series foo="1",bar="2" 3' }
+    let(:expected_body) { 'my_series bar="2",foo="1" 3' }
 
     it "should use the event fields as the data points, excluding @version and @timestamp by default as well as any fields configured by exclude_fields" do
       expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
@@ -348,7 +349,7 @@ describe LogStash::Outputs::InfluxDB do
     end
 
     let(:expected_url)  { 'http://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p='}
-    let(:expected_body) { 'my_series foo=1,bar=2.0,baz="\\\"quotes\\\"" 3' } # We want the backslash and the escaped-quote in the request body
+    let(:expected_body) { 'my_series bar=2.0,foo=1,baz="\\\"quotes\\\"" 3' } # We want the backslash and the escaped-quote in the request body
 
     it "should quote all other values (and escaping double quotes)" do
       expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
@@ -390,7 +391,7 @@ describe LogStash::Outputs::InfluxDB do
     end
 
     let(:expected_url)  { 'https://localhost:8086/write?db=statistics&rp=default&precision=ms&u=&p=' }
-    let(:expected_body) { 'barfoo foo="1",bar="2",baz="3" 4' }
+    let(:expected_body) { 'barfoo bar="2",foo="1",baz="3" 4' }
 
     it "should POST to an https URL" do
       expect_any_instance_of(Manticore::Client).to receive(:post!).with(expected_url, body: expected_body)
@@ -436,7 +437,7 @@ describe LogStash::Outputs::InfluxDB do
     end
 
     let(:expected_url)  { 'http://localhost:8086/write?db=barfoo&rp=default&precision=ms&u=&p=' }
-    let(:expected_body) { "m1 foo=\"1\",bar=\"2\",baz=\"m1\" 1\nm2 foo=\"3\",bar=\"4\",baz=\"m2\" 2\nm2 foo=\"5\",bar=\"6\",baz=\"m2\" 3" }
+    let(:expected_body) { "m1 bar=\"2\",foo=\"1\",baz=\"m1\" 1\nm2 bar=\"4\",foo=\"3\",baz=\"m2\" 2\nm2 bar=\"6\",foo=\"5\",baz=\"m2\" 3" }
 
     it "should result in a single POST (one per database)" do
       expect_any_instance_of(Manticore::Client).to receive(:post!).once
@@ -491,8 +492,8 @@ describe LogStash::Outputs::InfluxDB do
 
     let(:expected_url_db1)  { 'http://localhost:8086/write?db=db1&rp=default&precision=ms&u=&p=' }
     let(:expected_url_db2)  { 'http://localhost:8086/write?db=db2&rp=default&precision=ms&u=&p=' }
-    let(:expected_body_db1) { "m1 foo=\"1\",bar=\"db1\",baz=\"m1\" 1\nm2 foo=\"2\",bar=\"db1\",baz=\"m2\" 2" }
-    let(:expected_body_db2) { "m1 foo=\"3\",bar=\"db2\",baz=\"m1\" 3\nm2 foo=\"4\",bar=\"db2\",baz=\"m2\" 4" }
+    let(:expected_body_db1) { "m1 bar=\"db1\",foo=\"1\",baz=\"m1\" 1\nm2 bar=\"db1\",foo=\"2\",baz=\"m2\" 2" }
+    let(:expected_body_db2) { "m1 bar=\"db2\",foo=\"3\",baz=\"m1\" 3\nm2 bar=\"db2\",foo=\"4\",baz=\"m2\" 4" }
 
     it "should result in two POSTs (one per database)" do
       expect_any_instance_of(Manticore::Client).to receive(:post!).twice
