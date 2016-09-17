@@ -27,5 +27,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'logstash-input-generator'
   s.add_development_dependency 'logstash-filter-kv'
+  s.add_development_dependency 'logstash-filter-mutate'
 end
 
