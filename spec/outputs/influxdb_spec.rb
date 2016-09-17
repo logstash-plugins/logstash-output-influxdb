@@ -58,6 +58,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -66,7 +69,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my_series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
            }
          }
       CONFIG
@@ -93,6 +96,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -101,7 +107,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my_series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
              send_as_tags => ["bar", "baz", "qux"]
            }
          }
@@ -135,6 +141,9 @@ describe LogStash::Outputs::InfluxDB do
 		"feild space" => "pink dog"
 	      }
 	   }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -143,7 +152,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
              send_as_tags => ["bar", "baz", "test1", "test space"]
            }
          }
@@ -177,6 +186,9 @@ describe LogStash::Outputs::InfluxDB do
                 "feild, space" => "pink, dog"
               }
            }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -185,7 +197,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my, series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
              send_as_tags => ["bar", "baz", "test1", "test, space"]
            }
          }
@@ -219,6 +231,9 @@ describe LogStash::Outputs::InfluxDB do
                 "feild= space" => "pink= dog"
               }
            }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -227,7 +242,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my=series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
              send_as_tags => ["bar", "baz", "test1", "test=space"]
            }
          }
@@ -261,6 +276,9 @@ describe LogStash::Outputs::InfluxDB do
                 "feildspace" => 'C:\\Griffo'
               }
            }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -269,7 +287,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => 'my\\series'
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
              send_as_tags => ['bar', "baz", "test1", "test=space"]
            }
          }
@@ -298,6 +316,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { add_tag => [ "tagged" ] }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -306,7 +327,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my_series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
            }
          }
       CONFIG
@@ -333,6 +354,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -341,7 +365,7 @@ describe LogStash::Outputs::InfluxDB do
              measurement => "my_series"
              allow_time_override => true
              use_event_fields_for_data_points => true
-             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type", "host"]
+             exclude_fields => ["@version", "@timestamp", "sequence", "message", "type"]
              coerce_values => { "foo" => "integer" "bar" => "float" }
            }
          }
@@ -374,6 +398,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -384,7 +411,7 @@ describe LogStash::Outputs::InfluxDB do
              allow_time_override => true
              use_event_fields_for_data_points => true
              exclude_fields => [ "@version", "@timestamp", "sequence",
-                                 "message", "type", "host" ]
+                                 "message", "type"]
            }
          }
       CONFIG
@@ -420,6 +447,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -430,7 +460,7 @@ describe LogStash::Outputs::InfluxDB do
              allow_time_override => true
              use_event_fields_for_data_points => true
              exclude_fields => [ "@version", "@timestamp", "sequence",
-                                 "message", "type", "host" ]
+                                 "message", "type"]
            }
          }
       CONFIG
@@ -474,6 +504,9 @@ describe LogStash::Outputs::InfluxDB do
 
          filter {
            kv { }
+	   mutate {
+	    remove_field => ["host"]
+	   }
          }
 
          output {
@@ -484,7 +517,7 @@ describe LogStash::Outputs::InfluxDB do
              allow_time_override => true
              use_event_fields_for_data_points => true
              exclude_fields => [ "@version", "@timestamp", "sequence",
-                                 "message", "type", "host" ]
+                                 "message", "type"]
            }
          }
       CONFIG
