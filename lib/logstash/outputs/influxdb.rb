@@ -148,9 +148,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       end
     end
 
-    exclude_fields!(point)
-    coerce_values!(point)
-
     tags, point = extract_tags(point)
 
     event_hash = {
@@ -158,6 +155,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       "time"        => time,
       "fields"      => point
     }
+    exclude_fields!(point)
+    coerce_values!(point)
     event_hash["tags"] = tags unless tags.empty?
 
     buffer_receive(event_hash, event.sprintf(@db))
