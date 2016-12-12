@@ -23,7 +23,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   config :db, :validate => :string, :default => "statistics"
 
   # The retention policy to use
-  config :retention_policy, :validate => :string, :default => "default"
+  config :retention_policy, :validate => :string, :default => "autogen"
 
   # The hostname or IP address to reach your InfluxDB instance
   config :host, :validate => :string, :required => true
