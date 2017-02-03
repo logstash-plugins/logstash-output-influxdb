@@ -23,6 +23,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'stud'
   s.add_runtime_dependency 'manticore'
+  s.add_runtime_dependency 'influxdb'
 
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'logstash-input-generator'
