@@ -111,8 +111,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   
   # The amount of time in seconds to delay the initial retry on connection failure.  
   #
-  # The delay will increase exponentially for each retry attempt (up to max_retries).   
+  # The delay will increase exponentially for each retry attempt (up to max_retries).
+  
   config :initial_delay, :validate => :number, :default => 1
+  
   # The number of time to retry recoverable errors before dropping the events.
   #
   # A value of -1 will cause the plugin to retry indefinately.
@@ -121,17 +123,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #
   config :max_retries, :validate => :number, :default => 3
 
-  # Setting this value to true instructs the plugin to expect json in the following format.
-  #
-  # {"measurement": "", "tag_fields" : { .. }, "values" : { .. }, "timestamp"}
-  # The name field will be used as the measurement name, tag_fields as tags and value_fields written as values. 
-  # The tags and timestamp field are optional. If "timestamp" is missing the "@timestamp" field of the event will be used.
-  #
-  # When true this setting will ignore the measurement, send_as_tags, exclude_fields and data_points config settings.
-  # All other config settings including exclude_fields and coerce_values will work as expected.
-  #
-  config :pre_formatted_json_input, :validate => :number, :default => false
-
   public
   def register
     require 'manticore'
@@ -139,7 +130,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     
     @client = Manticore::Client.new
     @queue = []
-    @protocol = @ssl ? "https" : "http"
 
     buffer_initialize(
       :max_items => @flush_size,
@@ -197,14 +187,12 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def dowrite(body, database)
     begin
         @influxdbClient.write_points(body, nil, @retention_policy, @db  )
-        @logger.debug? and @logger.debug("Flushing #{body.size} events to #{database}")
     rescue InfluxDB::AuthenticationError => ae  
-        @logger.warn("Authentication Error while writing to InfluxDB: #{ae.message}")
+        @logger.warn("Authentication Error while writing to InfluxDB: #{ae.to_s}")
     rescue InfluxDB::ConnectionError => ce 
-         @logger.warn("Unable to Connect to InfluxDB: #{ce.to_s}")
+        @logger.warn("Unable to Connect to InfluxDB: #{ce.to_s}")
     rescue Exception => e
         @logger.warn("Non recoverable exception while writing to InfluxDB: #{e.to_s}"   )
-        return # abort this flush
     end
     
   end
