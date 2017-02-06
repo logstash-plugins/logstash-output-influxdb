@@ -136,8 +136,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       :max_interval => @idle_flush_time,
       :logger => @logger
     )
+    @auth_method = @user.nil? ? 'none'.freeze  : "params".freeze 
     
-    @influxdbClient = InfluxDB::Client.new host: @host, port: @port, time_precision: @time_precision, use_ssl: @ssl, verify_ssl: false, retry: @max_retries, initial_delay: @initial_delay
+    @influxdbClient = InfluxDB::Client.new host: @host, port: @port, time_precision: @time_precision, use_ssl: @ssl, verify_ssl: false, retry: @max_retries, initial_delay: @initial_delay, auth_method: @auth_method, username: @user, password: @password.value
   end # def register
 
 
@@ -184,17 +185,16 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     dowrite(events, database)
   end # def flush
     
-  def dowrite(body, database)
+  def dowrite(events, database)
     begin
-        @influxdbClient.write_points(body, nil, @retention_policy, @db  )
-    rescue InfluxDB::AuthenticationError => ae  
-        @logger.warn("Authentication Error while writing to InfluxDB: #{ae.to_s}")
+        @influxdbClient.write_points(events, nil, @retention_policy, @db  )
+    rescue InfluxDB::AuthenticationError => ae
+        @logger.warn("Authentication Error while writing to InfluxDB", :exception => ae)
     rescue InfluxDB::ConnectionError => ce 
-        @logger.warn("Unable to Connect to InfluxDB: #{ce.to_s}")
+        @logger.warn("Connection Error while writing to InfluxDB", :exception => ce)
     rescue Exception => e
-        @logger.warn("Non recoverable exception while writing to InfluxDB: #{e.to_s}"   )
+        @logger.warn("Non recoverable exception while writing to InfluxDB", :exception => ce)
     end
-    
   end
 
   def close
