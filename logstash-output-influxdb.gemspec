@@ -22,8 +22,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
   s.add_runtime_dependency 'stud'
-  s.add_runtime_dependency 'manticore'
-  s.add_runtime_dependency 'influxdb'
+  s.add_runtime_dependency 'influxdb' , ">= 0.3", "<= 0.3.99"
 
   s.add_development_dependency 'logstash-devutils'
   s.add_development_dependency 'logstash-input-generator'

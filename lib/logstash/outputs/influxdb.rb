@@ -125,10 +125,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   public
   def register
-    require 'manticore'
     require 'cgi'
     
-    @client = Manticore::Client.new
     @queue = []
 
     buffer_initialize(
