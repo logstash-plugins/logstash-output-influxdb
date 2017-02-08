@@ -322,6 +322,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       when :s  then 1
       when :ms then 1000
       when :u  then 1000000
+      when :n  then 1000000000
     end
     
     (timestamp.to_f * multiplier).to_i
