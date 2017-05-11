@@ -148,6 +148,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       end
     end
 
+
     tags, point = extract_tags(point)
 
     event_hash = {
@@ -155,8 +156,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       "time"        => time,
       "fields"      => point
     }
+
     exclude_fields!(point)
     coerce_values!(point)
+
     event_hash["tags"] = tags unless tags.empty?
 
     buffer_receive(event_hash, event.sprintf(@db))
@@ -294,19 +297,21 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #   original_fields = {"foo" => 1, "bar" => 2, "tags" => ["tag"]}
   #   tags, fields = extract_tags(original_fields)
   #   # tags: {"bar" => 2, "tag" => "true"} and fields: {"foo" => 1}
+
   def extract_tags(fields)
     remainder = fields.dup
 
     tags = if remainder.has_key?("tags") && remainder["tags"].respond_to?(:inject)
-      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = "true"; tags }
+      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = if remainder.has_key?(tag) then fields[tag] else "true" end; tags }
     else
       {}
     end
-    
+
     @send_as_tags.each { |key| (tags[key] = remainder.delete(key)) if remainder.has_key?(key) }
 
     tags.delete_if { |key,value| value.nil? || value == "" }
     remainder.delete_if { |key,value| value.nil? || value == "" }
+    remainder.delete_if { |key,value| tags.has_key?(key) }
 
     [tags, remainder]
   end
