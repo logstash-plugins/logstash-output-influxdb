@@ -191,7 +191,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     rescue InfluxDB::ConnectionError => ce 
         @logger.warn("Connection Error while writing to InfluxDB", :exception => ce)
     rescue Exception => e
-        @logger.warn("Non recoverable exception while writing to InfluxDB", :exception => ce)
+        @logger.warn("Non recoverable exception while writing to InfluxDB", :exception => e)
     end
   end
 
