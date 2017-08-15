@@ -1,3 +1,6 @@
+## 5.0.2
+  - Fix some documentation issues
+
 ## 5.0.0 
  - Use the official influxdb client. This doesn't change the config options, but has some
    breakage potential, so this is a major version bump.
