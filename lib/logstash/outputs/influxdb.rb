@@ -3,6 +3,7 @@ require "logstash/namespace"
 require "logstash/outputs/base"
 require "logstash/json"
 require "stud/buffer"
+require "influxdb"
 
 # This output lets you output Metrics to InfluxDB (>= 0.9.0-rc31)
 #
@@ -23,7 +24,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   config :db, :validate => :string, :default => "statistics"
 
   # The retention policy to use
-  config :retention_policy, :validate => :string, :default => "default"
+  config :retention_policy, :validate => :string, :default => "autogen"
 
   # The hostname or IP address to reach your InfluxDB instance
   config :host, :validate => :string, :required => true
@@ -77,18 +78,18 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   # Automatically use fields from the event as the data points sent to Influxdb
   config :use_event_fields_for_data_points, :validate => :boolean, :default => false
-
+  
   # An array containing the names of fields from the event to exclude from the
-  # data points
-  #
+  # data points 
+  # 
   # Events, in general, contain keys "@version" and "@timestamp". Other plugins
-  # may add others that you'll want to exclude (such as "command" from the
+  # may add others that you'll want to exclude (such as "command" from the 
   # exec plugin).
-  #
+  # 
   # This only applies when use_event_fields_for_data_points is true.
-  config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type"]
+  config :exclude_fields, :validate => :array, :default => ["@timestamp", "@version", "sequence", "message", "type"]  
 
-  # An array containing the names of fields to send to Influxdb as tags instead
+  # An array containing the names of fields to send to Influxdb as tags instead 
   # of fields. Influxdb 0.9 convention is that values that do not change every
   # request should be considered metadata and given as tags.
   config :send_as_tags, :validate => :array, :default => ["host"]
@@ -107,38 +108,49 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # This helps keep both fast and slow log streams moving along in
   # near-real-time.
   config :idle_flush_time, :validate => :number, :default => 1
-
+  
+  # The amount of time in seconds to delay the initial retry on connection failure.  
+  #
+  # The delay will increase exponentially for each retry attempt (up to max_retries).
+  
+  config :initial_delay, :validate => :number, :default => 1
+  
+  # The number of time to retry recoverable errors before dropping the events.
+  #
+  # A value of -1 will cause the plugin to retry indefinately.
+  # A value of 0 will cause the plugin to never retry.
+  # Otherwise it will retry up to the specified mumber of times.
+  #
+  config :max_retries, :validate => :number, :default => 3
 
   public
   def register
-    require 'manticore'
     require 'cgi'
-
-    @client = Manticore::Client.new
+    
     @queue = []
-    @protocol = @ssl ? "https" : "http"
 
     buffer_initialize(
       :max_items => @flush_size,
       :max_interval => @idle_flush_time,
       :logger => @logger
     )
+    @auth_method = @user.nil? ? 'none'.freeze  : "params".freeze 
+    
+    @influxdbClient = InfluxDB::Client.new host: @host, port: @port, time_precision: @time_precision, use_ssl: @ssl, verify_ssl: false, retry: @max_retries, initial_delay: @initial_delay, auth_method: @auth_method, username: @user, password: @password.value
   end # def register
 
 
   public
   def receive(event)
-
-
     @logger.debug? and @logger.debug("Influxdb output: Received event: #{event}")
 
-    # An Influxdb 0.9 event looks like this:
+    # An Influxdb 0.9 event looks like this: 
     # cpu_load_short,host=server01,region=us-west value=0.64 1434055562000000000
     #  ^ measurement  ^ tags (optional)            ^ fields   ^ timestamp (optional)
-    #
+    # 
     # Since we'll be buffering them to send as a batch, we'll only collect
     # the values going into the points array
-
+    
     time  = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
     point = create_point_from_event(event)
 
@@ -156,11 +168,11 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     tags, point = extract_tags(point)
 
     event_hash = {
-      "measurement" => event.sprintf(@measurement),
-      "time"        => time,
-      "fields"      => point
+      :series => event.sprintf(@measurement),
+      :timestamp       => time,
+      :values      => point
     }
-    event_hash["tags"] = tags unless tags.empty?
+    event_hash[:tags] = tags unless tags.empty?
 
     buffer_receive(event_hash, event.sprintf(@db))
   end # def receive
@@ -168,80 +180,39 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   def flush(events, database, teardown = false)
     @logger.debug? and @logger.debug("Flushing #{events.size} events to #{database} - Teardown? #{teardown}")
-    post(events_to_request_body(events), database)
+    dowrite(events, database)
   end # def flush
-
-
-  def post(body, database, proto = @protocol)
+    
+  def dowrite(events, database)
     begin
-      @query_params = "db=#{database}&rp=#{@retention_policy}&precision=#{@time_precision}&u=#{@user}&p=#{@password.value}"
-      @base_url = "#{proto}://#{@host}:#{@port}/write"
-      @url = "#{@base_url}?#{@query_params}"
-
-      @logger.debug? and @logger.debug("POSTing to #{@url}")
-      @logger.debug? and @logger.debug("Post body: #{body}")
-      response = @client.post!(@url, :body => body)
-
-    rescue EOFError
-      @logger.warn("EOF while writing request or reading response header from InfluxDB",
-                   :host => @host, :port => @port)
-      return # abort this flush
+        @influxdbClient.write_points(events, @time_precision, @retention_policy, database  )
+    rescue InfluxDB::AuthenticationError => ae
+        @logger.warn("Authentication Error while writing to InfluxDB", :exception => ae)
+    rescue InfluxDB::ConnectionError => ce 
+        @logger.warn("Connection Error while writing to InfluxDB", :exception => ce)
+    rescue Exception => e
+        @logger.warn("Non recoverable exception while writing to InfluxDB", :exception => e)
     end
-
-    if read_body?(response)
-      # Consume the body for error checking
-      # This will also free up the connection for reuse.
-      body = ""
-      begin
-        response.read_body { |chunk| body += chunk }
-      rescue EOFError
-        @logger.warn("EOF while reading response body from InfluxDB",
-                     :host => @host, :port => @port)
-        return # abort this flush
-      end
-
-      @logger.debug? and @logger.debug("Body: #{body}")
-    end
-
-    unless response && (200..299).include?(response.code)
-      @logger.error("Error writing to InfluxDB",
-                    :response => response, :response_body => body,
-                    :request_body => @queue.join("\n"))
-      return
-    else
-      @logger.debug? and @logger.debug("Post response: #{response}")
-    end
-  end # def post
+  end
 
   def close
     buffer_flush(:final => true)
   end # def teardown
 
-
-  # A batch POST for InfluxDB 0.9 looks like this:
-  # cpu_load_short,host=server01,region=us-west value=0.64 cpu_load_short,host=server02,region=us-west value=0.55 1422568543702900257 cpu_load_short,direction=in,host=server01,region=us-west value=23422.0 1422568543702900257
-  def events_to_request_body(events)
-    events.map do |event|
-      result = escaped_measurement(event["measurement"].dup)
-      result << "," << event["tags"].map { |tag,value| "#{escaped(tag)}=#{escaped(value)}" }.join(',') if event.has_key?("tags")
-      result << " " << event["fields"].map { |field,value| "#{escaped(field)}=#{quoted(value)}" }.join(',')
-      result << " #{event["time"]}"
-    end.join("\n") #each measurement should be on a separate line
-  end
-
+ 
   # Create a data point from an event. If @use_event_fields_for_data_points is
-  # true, convert the event to a hash. Otherwise, use @data_points. Each key and
+  # true, convert the event to a hash. Otherwise, use @data_points. Each key and 
   # value will be run through event#sprintf with the exception of a non-String
   # value (which will be passed through)
   def create_point_from_event(event)
-    Hash[ (@use_event_fields_for_data_points ? event.to_hash : @data_points).map do |k,v|
-      [event.sprintf(k), (String === v ? event.sprintf(v) : v)]
+    Hash[ (@use_event_fields_for_data_points ? event.to_hash : @data_points).map do |k,v| 
+      [event.sprintf(k), (String === v ? event.sprintf(v) : v)] 
     end ]
   end
+  
 
-
-  # Coerce values in the event data to their appropriate type. This requires
-  # foreknowledge of what's in the data point, which is less than ideal. An
+  # Coerce values in the event data to their appropriate type. This requires 
+  # foreknowledge of what's in the data point, which is less than ideal. An 
   # alternative is to use a `code` filter and manipulate the individual point's
   # data before sending to the output pipeline
   def coerce_values!(event_data)
@@ -265,16 +236,16 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     case value_type.to_sym
     when :integer
       value.to_i
-
+      
     when :float
       value.to_f
 
     when :string
       value.to_s
-
+    
     else
       @logger.warn("Don't know how to convert to #{value_type}. Returning value unchanged")
-      value
+      value  
     end
   end
 
@@ -286,13 +257,13 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   end
 
 
-  # Extract tags from a hash of fields.
-  # Returns a tuple containing a hash of tags (as configured by send_as_tags)
-  # and a hash of fields that exclude the tags. If fields contains a key
+  # Extract tags from a hash of fields. 
+  # Returns a tuple containing a hash of tags (as configured by send_as_tags) 
+  # and a hash of fields that exclude the tags. If fields contains a key 
   # "tags" with an array, they will be moved to the tags hash (and each will be
   # given a value of true)
-  #
-  # Example:
+  # 
+  # Example: 
   #   # Given send_as_tags: ["bar"]
   #   original_fields = {"foo" => 1, "bar" => 2, "tags" => ["tag"]}
   #   tags, fields = extract_tags(original_fields)
@@ -315,7 +286,6 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     [tags, remainder]
   end
 
-
   # Returns the numeric value of the given timestamp in the requested precision.
   # precision must be one of the valid values for time_precision
   def timestamp_at_precision( timestamp, precision )
@@ -326,34 +296,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       when :ms then 1000
       when :u  then 1000000
     end
-
+    
     (timestamp.to_f * multiplier).to_i
   end
-
-
-  # Only read the response body if its status is not 1xx, 204, or 304. TODO: Should
-  # also not try reading the body if the request was a HEAD
-  def read_body?( response )
-    ! (response.nil? || [204,304].include?(response.code) || (100..199).include?(response.code))
-  end
-
-
-  # Return a quoted string of the given value if it's not a number
-  def quoted(value)
-    Numeric === value ? value : %Q|"#{value.gsub('"','\"')}"|
-  end
-
-
-  # Escape tag key, tag value, or field key
-  def escaped(value)
-    !!value == value ? value : value.gsub(/[ ,=]/, ' ' => '\ ', ',' => '\,', '=' => '\=')
-  end
-
-
-  # Escape measurements note they don't need to worry about the '=' case
-  def escaped_measurement(value)
-    !!value == value ? value : value.gsub(/[ ,]/, ' ' => '\ ', ',' => '\,')
-  end
-
 
 end # class LogStash::Outputs::InfluxDB
