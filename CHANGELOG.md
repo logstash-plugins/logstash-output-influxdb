@@ -3,6 +3,10 @@
 
 ## 5.0.2
   - Fix some documentation issues
+  
+## 5.0.1
+  - Fix a typo in exception handling 
+  - Various build and ci changes
 
 ## 5.0.0 
  - Use the official influxdb client. This doesn't change the config options, but has some
