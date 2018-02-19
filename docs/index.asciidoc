@@ -185,7 +185,7 @@ The number of time to retry recoverable errors before dropping the events.
 
 A value of -1 will cause the plugin to retry indefinately.
 A value of 0 will cause the plugin to never retry.
-Otherwise it will retry up to the specified mumber of times.
+Otherwise it will retry up to the specified number of times.
 
 
 [id="plugins-{type}s-{plugin}-measurement"]
