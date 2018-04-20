@@ -1,5 +1,6 @@
 :plugin: influxdb
 :type: output
+:default_codec: plain
 
 ///////////////////////////////////////////
 START - GENERATED VARIABLES, DO NOT EDIT!
@@ -264,7 +265,7 @@ Automatically use fields from the event as the data points sent to Influxdb
 
 The user who has access to the named database
 
-
-
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
+
+:default_codec!:
