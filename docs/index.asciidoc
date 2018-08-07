@@ -229,7 +229,8 @@ The retention policy to use
 
 An array containing the names of fields to send to Influxdb as tags instead 
 of fields. Influxdb 0.9 convention is that values that do not change every
-request should be considered metadata and given as tags.
+request should be considered metadata and given as tags. Tags are only send when
+present in `data_points` or if `user_event_fields_for_data_points` is `true`. 
 
 [id="plugins-{type}s-{plugin}-ssl"]
 ===== `ssl` 
