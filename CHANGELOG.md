@@ -1,3 +1,6 @@
+## 5.0.5
+  - Added clarifying information for `send_as_tags` config option [#80](https://github.com/logstash-plugins/logstash-output-influxdb/pull/80)
+  
 ## 5.0.4
   - Docs: Set the default_codec doc attribute.
 
