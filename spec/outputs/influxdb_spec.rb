@@ -225,7 +225,7 @@ describe LogStash::Outputs::InfluxDB do
       subject.close
     end
 
-    let(:event) {LogStash::Event.new("time" => 22,"pts" => {"foo" => "bar","fee" =>"buzz"}, "tags" => ["foo"], "type" => "generator")}
+    let(:event) {LogStash::Event.new("pts" => {"foo" => "bar","fee" =>"buzz","time" => 22}, "tags" => ["foo"], "type" => "generator")}
     let(:result) {[{:series=>"my_series", :timestamp=>22, :tags=>{"foo"=>"bar"}, :values=>{"fee"=>"buzz"}}]}
 
     it "should use the hash field entries as the data points and array field as tags" do
