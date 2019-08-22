@@ -78,6 +78,10 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
   # Automatically use fields from the event as the data points sent to Influxdb
   config :use_event_fields_for_data_points, :validate => :boolean, :default => false
+
+  # Derive all data points from the give event hash field path. If this configuration parameter
+  # is specified, `use_event_fields_for_data_points` is ignored.
+  config :use_hash_field_for_data_points, :validate => :string, :default => nil 
   
   # An array containing the names of fields from the event to exclude from the
   # data points 
@@ -94,6 +98,11 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # request should be considered metadata and given as tags.
   # Tags are only sent when present in `data_points` or if `use_event_fields_for_data_points` is `true`.
   config :send_as_tags, :validate => :array, :default => ["host"]
+
+  # Similar in its behavior/defintion to `send_as_tags`, this configuration parameter 
+  # specifies the event array field path from tags are to be derived. 
+  # If it is specified, `send_as_tags` is ignored.
+  config :send_array_field_as_tags, :validate => :string, :default => nil
 
   # This setting controls how many events will be buffered before sending a batch
   # of events. Note that these are only batched for the same measurement
@@ -167,7 +176,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
 
 
 
-    tags, point = extract_tags(point)
+    tags, point = extract_tags(event,point)
 
     event_hash = {
       :series => event.sprintf(@measurement),
@@ -201,13 +210,22 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     buffer_flush(:final => true)
   end # def teardown
 
- 
+  def resolve_data_points(event)
+    if !(@use_hash_field_for_data_points.nil? || @use_hash_field_for_data_points.empty?)
+	return event.get(@use_hash_field_for_data_points).to_hash
+    elsif @use_event_fields_for_data_points
+	return event.to_hash
+    else
+	return @data_points
+    end
+  end
+
   # Create a data point from an event. If @use_event_fields_for_data_points is
   # true, convert the event to a hash. Otherwise, use @data_points. Each key and 
   # value will be run through event#sprintf with the exception of a non-String
   # value (which will be passed through)
   def create_point_from_event(event)
-    Hash[ (@use_event_fields_for_data_points ? event.to_hash : @data_points).map do |k,v| 
+    Hash[ resolve_data_points(event).map do |k,v| 
       [event.sprintf(k), (String === v ? event.sprintf(v) : v)] 
     end ]
   end
@@ -259,6 +277,14 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   end
 
 
+  def resolve_tags(event)
+    if @send_array_field_as_tags
+	return event.get(@send_array_field_as_tags)
+    else
+        return @send_as_tags
+    end
+  end
+
   # Extract tags from a hash of fields. 
   # Returns a tuple containing a hash of tags (as configured by send_as_tags) 
   # and a hash of fields that exclude the tags. If fields contains a key 
@@ -270,7 +296,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #   original_fields = {"foo" => 1, "bar" => 2, "tags" => ["tag"]}
   #   tags, fields = extract_tags(original_fields)
   #   # tags: {"bar" => 2, "tag" => "true"} and fields: {"foo" => 1}
-  def extract_tags(fields)
+  def extract_tags(event,fields)
     remainder = fields.dup
 
     tags = if remainder.has_key?("tags") && remainder["tags"].respond_to?(:inject)
@@ -279,7 +305,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
       {}
     end
     
-    @send_as_tags.each { |key| (tags[key] = remainder.delete(key)) if remainder.has_key?(key) }
+    resolve_tags(event).each { |key| (tags[key] = remainder.delete(key)) if remainder.has_key?(key) }
 
     tags.delete_if { |key,value| value.nil? || value == "" }
     remainder.delete_if { |key,value| value.nil? || value == "" }
