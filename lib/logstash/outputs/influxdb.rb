@@ -74,6 +74,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #
   # currently supported datatypes are `integer` and `float`
   #
+  # supports sprintf-formatting in column names
+  #
   config :coerce_values, :validate => :hash, :default => {}
 
   # Automatically use fields from the event as the data points sent to Influxdb
@@ -155,7 +157,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     time  = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
     point = create_point_from_event(event)
     exclude_fields!(point)
-    coerce_values!(point)
+    coerce_values!(point, event)
 
     if point.has_key?('time')
       unless @allow_time_override
@@ -217,8 +219,9 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # foreknowledge of what's in the data point, which is less than ideal. An 
   # alternative is to use a `code` filter and manipulate the individual point's
   # data before sending to the output pipeline
-  def coerce_values!(event_data)
+  def coerce_values!(event_data, event)
     @coerce_values.each do |column, value_type|
+      column = event.sprintf(column)
       if event_data.has_key?(column)
         begin
           @logger.debug? and @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{event_data[column]}")

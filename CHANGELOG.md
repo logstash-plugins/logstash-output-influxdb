@@ -1,3 +1,6 @@
+## 5.0.6
+  - Column names in coerce_values now supports sprintf formatting
+
 ## 5.0.5
   - Added clarifying information for `send_as_tags` config option [#80](https://github.com/logstash-plugins/logstash-output-influxdb/pull/80)
   
