@@ -4,7 +4,7 @@
 
 # Logstash Plugin
 
-[![Travis Build Status](https://travis-ci.org/logstash-plugins/logstash-output-influxdb.svg)](https://travis-ci.org/logstash-plugins/logstash-output-influxdb)
+[![Travis Build Status](https://travis-ci.com/logstash-plugins/logstash-output-influxdb.svg)](https://travis-ci.com/logstash-plugins/logstash-output-influxdb)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
