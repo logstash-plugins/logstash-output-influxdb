@@ -74,6 +74,8 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   #
   # currently supported datatypes are `integer` and `float`
   #
+  # supports sprintf-formatting in column names
+  #
   config :coerce_values, :validate => :hash, :default => {}
 
   # Automatically use fields from the event as the data points sent to Influxdb
@@ -155,17 +157,20 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     time  = timestamp_at_precision(event.timestamp, @time_precision.to_sym)
     point = create_point_from_event(event)
     exclude_fields!(point)
-    coerce_values!(point)
+    coerce_values!(point, event)
 
     if point.has_key?('time')
       unless @allow_time_override
-        logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
+        @logger.error("Cannot override value of time without 'allow_time_override'. Using event timestamp")
       else
         time = point.delete("time")
       end
     end
 
-
+    if point.empty?
+      @logger.debug? and @logger.debug("Received data points empty")
+      return
+    end
 
     tags, point = extract_tags(point)
 
@@ -217,12 +222,18 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   # foreknowledge of what's in the data point, which is less than ideal. An 
   # alternative is to use a `code` filter and manipulate the individual point's
   # data before sending to the output pipeline
-  def coerce_values!(event_data)
+  def coerce_values!(event_data, event)
     @coerce_values.each do |column, value_type|
+      column = event.sprintf(column)
       if event_data.has_key?(column)
         begin
           @logger.debug? and @logger.debug("Converting column #{column} to type #{value_type}: Current value: #{event_data[column]}")
-          event_data[column] = coerce_value(value_type, event_data[column])
+          coerced_value, ok = coerce_value(value_type, event_data[column])
+          if ok
+            event_data[column] = coerced_value
+          else
+            event_data.delete(column)
+          end
 
         rescue => e
           @logger.error("Unhandled exception", :error => e.message)
@@ -237,17 +248,27 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
   def coerce_value(value_type, value)
     case value_type.to_sym
     when :integer
-      value.to_i
+      number = Integer(value) rescue nil
+      if number.nil?
+        [value, false]
+      else
+        [number, true]
+      end
       
     when :float
-      value.to_f
+      number = Float(value) rescue nil
+      if number.nil?
+        [value, false]
+      else
+        [number, true]
+      end
 
     when :string
-      value.to_s
+      [value.to_s, true]
     
     else
       @logger.warn("Don't know how to convert to #{value_type}. Returning value unchanged")
-      value  
+      [value, true]
     end
   end
 
