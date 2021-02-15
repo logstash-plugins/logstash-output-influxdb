@@ -205,6 +205,35 @@ describe LogStash::Outputs::InfluxDB do
 
   end
 
+  context "read data-points/tags from speicifc event fields" do
+
+    let(:config) do
+    {
+      "host" => "localhost",
+      "measurement" => "my_series",
+      "allow_time_override" => true,
+      "use_event_fields_for_data_points" => true,
+      "use_hash_field_for_data_points" => "[pts]",
+      "send_array_field_as_tags" => "[tags]",
+    }
+    end
+
+    before do
+      subject.register
+      allow(subject).to receive(:dowrite).with(result, "statistics")
+      subject.receive(event)
+      subject.close
+    end
+
+    let(:event) {LogStash::Event.new("pts" => {"foo" => "bar","fee" =>"buzz","time" => 22}, "tags" => ["foo"], "type" => "generator")}
+    let(:result) {[{:series=>"my_series", :timestamp=>22, :tags=>{"foo"=>"bar"}, :values=>{"fee"=>"buzz"}}]}
+
+    it "should use the hash field entries as the data points and array field as tags" do
+      expect(subject).to have_received(:dowrite).with(result, "statistics")
+    end
+
+  end
+
   context "when fields are coerced to numerics" do
 
     let(:config) do
