@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name            = 'logstash-output-influxdb'
-  s.version         = '5.0.5'
+  s.version         = '5.0.6'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Writes metrics to InfluxDB"
   s.description     = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"

@@ -1,3 +1,6 @@
+## 5.0.6
+  - [Doc] Fixed typo in `user_event_fields_for_data_points` config option [#95](https://github.com/logstash-plugins/logstash-output-influxdb/pull/95)
+
 ## 5.0.5
   - Added clarifying information for `send_as_tags` config option [#80](https://github.com/logstash-plugins/logstash-output-influxdb/pull/80)
   
