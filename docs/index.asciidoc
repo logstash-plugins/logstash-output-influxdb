@@ -104,7 +104,7 @@ currently supported datatypes are `integer` and `float`
   * Default value is `{}`
 
 Hash of key/value pairs representing data points to send to the named database
-Example: `{'column1' => 'value1', 'column2' => 'value2'}`
+Example: `{'column1' => 'value1' 'column2' => 'value2'}`
 
 Events for the same measurement will be batched together where possible
 Both keys and values support sprintf formatting
