@@ -187,7 +187,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     
   def dowrite(events, database)
     begin
-        @influxdbClient.write_points(events, @time_precision, @retention_policy, @db  )
+        @influxdbClient.write_points(events, @time_precision, @retention_policy, database  )
     rescue InfluxDB::AuthenticationError => ae
         @logger.warn("Authentication Error while writing to InfluxDB", :exception => ae)
     rescue InfluxDB::ConnectionError => ce 
@@ -274,19 +274,19 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     remainder = fields.dup
 
     tags = if remainder.has_key?("tags") && remainder["tags"].respond_to?(:inject)
-      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = "true"; tags }
+      remainder.delete("tags").inject({}) { |tags, tag| tags[tag] = if remainder.has_key?(tag) then fields[tag] else "true" end; tags }
     else
       {}
     end
-    
+
     @send_as_tags.each { |key| (tags[key] = remainder.delete(key)) if remainder.has_key?(key) }
 
     tags.delete_if { |key,value| value.nil? || value == "" }
     remainder.delete_if { |key,value| value.nil? || value == "" }
+    remainder.delete_if { |key,value| tags.has_key?(key) }
 
     [tags, remainder]
   end
-
 
   # Returns the numeric value of the given timestamp in the requested precision.
   # precision must be one of the valid values for time_precision
