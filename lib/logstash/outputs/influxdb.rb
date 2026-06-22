@@ -187,7 +187,7 @@ class LogStash::Outputs::InfluxDB < LogStash::Outputs::Base
     
   def dowrite(events, database)
     begin
-        @influxdbClient.write_points(events, @time_precision, @retention_policy, @db  )
+        @influxdbClient.write_points(events, @time_precision, @retention_policy, database  )
     rescue InfluxDB::AuthenticationError => ae
         @logger.warn("Authentication Error while writing to InfluxDB", :exception => ae)
     rescue InfluxDB::ConnectionError => ce 
